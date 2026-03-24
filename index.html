@@ -171,9 +171,14 @@
     .footer-text{font-size:10px;letter-spacing:3px;color:#4A2A10;text-transform:uppercase}
     .footer-text span{color:#6A4A20}
 
-    /* Hide default df-messenger bubble — we use our own */
-    df-messenger{z-index:99999!important;position:fixed!important;bottom:24px!important;right:24px!important}
-    df-messenger::part(chat-button){display:none!important}
+    /* Push default bubble completely off screen — chat window still works */
+    df-messenger{
+      z-index:99997!important;
+      position:fixed!important;
+      bottom:-999px!important;
+      right:-999px!important;
+      pointer-events:none;
+    }
 
     /* ══ CUSTOM COFFEE CHAT BUBBLE ══ */
     #coffee-bubble {
@@ -514,24 +519,55 @@
   const nav=document.getElementById('nav');
   window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>80));
 
-  // Custom coffee bubble toggle
+  // Custom coffee bubble — bulletproof open/close for demo
+  let chatOpen = false;
+
+  // df-messenger exposes an 'open-chat' custom event — most reliable method
   function toggleChat() {
     const dfm = document.querySelector('df-messenger');
+    const label = document.querySelector('.coffee-label');
     if (!dfm) return;
-    // Try to find and click the internal open button
-    const tryClick = () => {
-      const root = dfm.shadowRoot;
-      if (!root) return;
-      // Find the chat bubble or the open button inside shadow DOM
-      const bubble = root.querySelector('df-messenger-chat-bubble');
-      if (bubble && bubble.shadowRoot) {
-        const btn = bubble.shadowRoot.querySelector('button, [role="button"], .chat-wrapper');
-        if (btn) { btn.click(); return; }
-      }
-      // Fallback: dispatch a click on the df-messenger element itself
-      dfm.click();
-    };
-    tryClick();
+
+    if (!chatOpen) {
+      // OPEN: bring element back, dispatch open event, then find button
+      dfm.style.setProperty('bottom', '16px', 'important');
+      dfm.style.setProperty('right', '16px', 'important');
+      dfm.style.setProperty('pointer-events', 'auto', 'important');
+      dfm.style.setProperty('visibility', 'visible', 'important');
+
+      // Give it a frame to reattach, then trigger open
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Walk shadow DOM for the trigger button
+          function findBtn(root) {
+            if (!root) return null;
+            const b = root.querySelector('button');
+            if (b) return b;
+            for (const el of root.querySelectorAll('*')) {
+              const found = el.shadowRoot ? findBtn(el.shadowRoot) : null;
+              if (found) return found;
+            }
+            return null;
+          }
+          const btn = findBtn(dfm.shadowRoot);
+          if (btn) btn.click();
+          else dfm.dispatchEvent(new CustomEvent('df-messenger-open-chat'));
+        });
+      });
+
+      chatOpen = true;
+      if (label) { label.textContent = 'Close ✕'; label.style.background = '#5A3A1A'; label.style.color = '#FDF6EC'; }
+
+    } else {
+      // CLOSE: hide df-messenger panel
+      dfm.style.setProperty('bottom', '-999px', 'important');
+      dfm.style.setProperty('right', '-999px', 'important');
+      dfm.style.setProperty('pointer-events', 'none', 'important');
+      dfm.style.setProperty('visibility', 'hidden', 'important');
+
+      chatOpen = false;
+      if (label) { label.textContent = 'Order Now'; label.style.background = ''; label.style.color = ''; }
+    }
   }
 
   // Scroll reveals

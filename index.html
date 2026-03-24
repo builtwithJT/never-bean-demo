@@ -171,13 +171,21 @@
     .footer-text{font-size:10px;letter-spacing:3px;color:#4A2A10;text-transform:uppercase}
     .footer-text span{color:#6A4A20}
 
-    /* Push default bubble completely off screen — chat window still works */
+    /* Keep df-messenger on screen but hide its built-in bubble */
     df-messenger{
       z-index:99997!important;
       position:fixed!important;
-      bottom:-999px!important;
-      right:-999px!important;
-      pointer-events:none;
+      bottom:0!important;
+      right:0!important;
+    }
+    /* Hide the default chat bubble button via every known selector */
+    df-messenger df-messenger-chat-bubble,
+    df-messenger::part(chat-button),
+    df-messenger::part(fab) {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
 
     /* ══ CUSTOM COFFEE CHAT BUBBLE ══ */
@@ -519,56 +527,40 @@
   const nav=document.getElementById('nav');
   window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>80));
 
-  // Custom coffee bubble — bulletproof open/close for demo
+  // Custom coffee bubble — uses df-messenger official open/close API
   let chatOpen = false;
 
-  // df-messenger exposes an 'open-chat' custom event — most reliable method
   function toggleChat() {
     const dfm = document.querySelector('df-messenger');
     const label = document.querySelector('.coffee-label');
     if (!dfm) return;
 
     if (!chatOpen) {
-      // OPEN: bring element back, dispatch open event, then find button
-      dfm.style.setProperty('bottom', '16px', 'important');
-      dfm.style.setProperty('right', '16px', 'important');
-      dfm.style.setProperty('pointer-events', 'auto', 'important');
-      dfm.style.setProperty('visibility', 'visible', 'important');
-
-      // Give it a frame to reattach, then trigger open
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Walk shadow DOM for the trigger button
-          function findBtn(root) {
-            if (!root) return null;
-            const b = root.querySelector('button');
-            if (b) return b;
-            for (const el of root.querySelectorAll('*')) {
-              const found = el.shadowRoot ? findBtn(el.shadowRoot) : null;
-              if (found) return found;
-            }
-            return null;
-          }
-          const btn = findBtn(dfm.shadowRoot);
-          if (btn) btn.click();
-          else dfm.dispatchEvent(new CustomEvent('df-messenger-open-chat'));
-        });
-      });
-
+      // Use the official published method — this triggers the full session
+      dfm.openChat();
       chatOpen = true;
-      if (label) { label.textContent = 'Close ✕'; label.style.background = '#5A3A1A'; label.style.color = '#FDF6EC'; }
-
+      if (label) {
+        label.textContent = 'Close ✕';
+        label.style.background = '#5A3A1A';
+        label.style.color = '#FDF6EC';
+      }
     } else {
-      // CLOSE: hide df-messenger panel
-      dfm.style.setProperty('bottom', '-999px', 'important');
-      dfm.style.setProperty('right', '-999px', 'important');
-      dfm.style.setProperty('pointer-events', 'none', 'important');
-      dfm.style.setProperty('visibility', 'hidden', 'important');
-
+      dfm.closeChat();
       chatOpen = false;
-      if (label) { label.textContent = 'Order Now'; label.style.background = ''; label.style.color = ''; }
+      if (label) {
+        label.textContent = 'Order Now';
+        label.style.background = '';
+        label.style.color = '';
+      }
     }
   }
+
+  // Sync state if user closes via the X inside the chat panel
+  document.addEventListener('df-messenger-chat-closed', () => {
+    chatOpen = false;
+    const label = document.querySelector('.coffee-label');
+    if (label) { label.textContent = 'Order Now'; label.style.background = ''; label.style.color = ''; }
+  });
 
   // Scroll reveals
   const ro=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible')}),{threshold:.1});

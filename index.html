@@ -171,7 +171,113 @@
     .footer-text{font-size:10px;letter-spacing:3px;color:#4A2A10;text-transform:uppercase}
     .footer-text span{color:#6A4A20}
 
+    /* Hide default df-messenger bubble — we use our own */
     df-messenger{z-index:99999!important;position:fixed!important;bottom:24px!important;right:24px!important}
+    df-messenger::part(chat-button){display:none!important}
+
+    /* ══ CUSTOM COFFEE CHAT BUBBLE ══ */
+    #coffee-bubble {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      z-index: 99998;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    /* Pulse ring */
+    #coffee-bubble::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid #B8720A66;
+      animation: ring-pulse 2.5s ease-out infinite;
+    }
+    #coffee-bubble::after {
+      content: '';
+      position: absolute;
+      inset: -16px;
+      border-radius: 50%;
+      border: 1px solid #B8720A33;
+      animation: ring-pulse 2.5s ease-out .6s infinite;
+    }
+    @keyframes ring-pulse {
+      0%   { transform: scale(0.9); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+
+    /* Main button circle */
+    .coffee-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: var(--espresso);
+      border: 2px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px #00000044, 0 0 0 0 #B8720A66;
+      transition: transform .2s ease, box-shadow .2s ease;
+      position: relative;
+      overflow: visible;
+    }
+    #coffee-bubble:hover .coffee-btn {
+      transform: scale(1.1);
+      box-shadow: 0 12px 40px #00000055, 0 0 24px #B8720A44;
+    }
+
+    /* Coffee cup SVG */
+    .coffee-icon {
+      width: 30px; height: 30px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Steam wisps above cup */
+    .steam {
+      position: absolute;
+      top: -14px; left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+    }
+    .steam-line {
+      width: 2px;
+      height: 10px;
+      background: linear-gradient(to top, #E8A830, transparent);
+      border-radius: 2px;
+      animation: steam-rise 2s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+    .steam-line:nth-child(1) { animation-delay: 0s; }
+    .steam-line:nth-child(2) { animation-delay: .35s; height: 14px; }
+    .steam-line:nth-child(3) { animation-delay: .7s; }
+    @keyframes steam-rise {
+      0%   { opacity: 0; transform: scaleX(1) translateY(0); }
+      30%  { opacity: 0.8; }
+      100% { opacity: 0; transform: scaleX(1.4) translateY(-12px); }
+    }
+
+    /* Label below */
+    .coffee-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--espresso);
+      background: var(--gold-bright);
+      padding: 3px 10px;
+      border-radius: 2px;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px #00000022;
+      animation: label-bob 3s ease-in-out infinite;
+    }
+    @keyframes label-bob {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-3px); }
+    }
   </style>
 </head>
 <body>
@@ -377,6 +483,26 @@
   </div>
 </footer>
 
+<!-- CUSTOM COFFEE CHAT BUBBLE -->
+<div id="coffee-bubble" onclick="toggleChat()" title="Order with our AI Barista">
+  <div class="coffee-btn">
+    <div class="steam">
+      <div class="steam-line"></div>
+      <div class="steam-line"></div>
+      <div class="steam-line"></div>
+    </div>
+    <!-- Coffee cup SVG -->
+    <svg class="coffee-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="16" width="20" height="16" rx="3" fill="none" stroke="#E8A830" stroke-width="1.8"/>
+      <path d="M28 20 Q36 20 36 26 Q36 32 28 32" fill="none" stroke="#E8A830" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="18" cy="16" rx="10" ry="3" fill="none" stroke="#E8A830" stroke-width="1.5"/>
+      <ellipse cx="18" cy="16" rx="5" ry="1.5" fill="#E8A830" opacity="0.4"/>
+      <line x1="10" y1="35" x2="26" y2="35" stroke="#E8A830" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <div class="coffee-label">Order Now</div>
+</div>
+
 <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
 <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
 <df-messenger location="us-central1" project-id="bionic-insight-439417-j9" agent-id="e22c1bb2-20cc-44ae-87fd-f419fd5d1d3a" language-code="en">
@@ -387,6 +513,26 @@
   // Sticky nav
   const nav=document.getElementById('nav');
   window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>80));
+
+  // Custom coffee bubble toggle
+  function toggleChat() {
+    const dfm = document.querySelector('df-messenger');
+    if (!dfm) return;
+    // Try to find and click the internal open button
+    const tryClick = () => {
+      const root = dfm.shadowRoot;
+      if (!root) return;
+      // Find the chat bubble or the open button inside shadow DOM
+      const bubble = root.querySelector('df-messenger-chat-bubble');
+      if (bubble && bubble.shadowRoot) {
+        const btn = bubble.shadowRoot.querySelector('button, [role="button"], .chat-wrapper');
+        if (btn) { btn.click(); return; }
+      }
+      // Fallback: dispatch a click on the df-messenger element itself
+      dfm.click();
+    };
+    tryClick();
+  }
 
   // Scroll reveals
   const ro=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible')}),{threshold:.1});
